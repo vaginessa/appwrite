@@ -106,7 +106,6 @@ services:
       - ./docs:/usr/src/code/docs
       - ./public:/usr/src/code/public
       - ./src:/usr/src/code/src
-      - ./dev:/usr/local/dev
     depends_on:
       - mariadb
       - redis
@@ -600,7 +599,6 @@ services:
     volumes:
       - ./app:/usr/src/code/app
       - ./src:/usr/src/code/src
-      - ./dev:/usr/local/dev
     depends_on:
       - influxdb
       - mariadb
@@ -638,7 +636,6 @@ services:
     volumes:
       - ./app:/usr/src/code/app
       - ./src:/usr/src/code/src
-      - ./dev:/usr/local/dev
     depends_on:
       - influxdb
       - mariadb

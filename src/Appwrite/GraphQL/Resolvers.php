@@ -22,27 +22,27 @@ class Resolvers
      */
     public static function resolveAPIRequest(
         App $utopia,
-        ?Route $route,
+        string $path,
+        string $method
     ): callable {
         return static fn($type, $args, $context, $info) => new CoroutinePromise(
-            function (callable $resolve, callable $reject) use ($utopia, $route, $args, $context, $info) {
+            function (callable $resolve, callable $reject) use ($utopia, $path, $method, $args, $context, $info) {
                 $utopia = $utopia->getResource('current', true);
                 $request = $utopia->getResource('request', true);
                 $response = $utopia->getResource('response', true);
                 $swoole = $request->getSwoole();
 
-                $path = $route->getPath();
                 foreach ($args as $key => $value) {
                     if (\str_contains($path, '/:' . $key)) {
                         $path = \str_replace(':' . $key, $value, $path);
                     }
                 }
 
-                $swoole->server['request_method'] = $route->getMethod();
+                $swoole->server['request_method'] = $method;
                 $swoole->server['request_uri'] = $path;
                 $swoole->server['path_info'] = $path;
 
-                switch ($route->getMethod()) {
+                switch ($method) {
                     case 'GET':
                         $swoole->get = $args;
                         break;

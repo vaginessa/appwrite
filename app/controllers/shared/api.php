@@ -438,9 +438,8 @@ App::shutdown()
 
 App::shutdown()
     ->groups(['schema'])
-    ->inject('register')
+    ->inject('cache')
     ->inject('project')
-    ->action(function (Registry $register, Document $project) {
-        $projectId = $project->getId();
-        $register->set($projectId . 'SchemaDirty', fn() => true);
+    ->action(function (Redis $cache, Document $project) {
+        $cache->set($project->getId() . '-schema-dirty', true);
     });

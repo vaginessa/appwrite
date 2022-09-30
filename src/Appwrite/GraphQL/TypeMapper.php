@@ -165,7 +165,11 @@ class TypeMapper
                 'type' => $type,
                 'description' => $description,
                 'args' => $params,
-                'resolve' => Resolvers::resolveAPIRequest($utopia, $route)
+                'resolve' => Resolvers::resolveAPIRequest(
+                    $utopia,
+                    $route->getPath(),
+                    $route->getMethod()
+                )
             ];
 
             if ($list) {
