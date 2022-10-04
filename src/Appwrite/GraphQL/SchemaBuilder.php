@@ -30,6 +30,12 @@ class SchemaBuilder
     ): Schema {
         App::setResource('current', static fn() => $utopia);
 
+        $models = $utopia
+            ->getResource('response')
+            ->getModels();
+
+        TypeMapper::init($models);
+
         $appVersion = App::getEnv('_APP_VERSION');
         $apiSchemaKey = 'api-schema';
         $apiVersionKey = 'api-schema-version';
@@ -157,12 +163,6 @@ class SchemaBuilder
         App $utopia,
         Redis $cache
     ): array {
-        $models = $utopia
-            ->getResource('response')
-            ->getModels();
-
-        TypeMapper::init($models);
-
         $queries = [];
         $mutations = [];
 
