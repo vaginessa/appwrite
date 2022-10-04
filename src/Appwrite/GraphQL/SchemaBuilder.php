@@ -3,9 +3,12 @@
 namespace Appwrite\GraphQL;
 
 use Appwrite\Utopia\Response;
+use GraphQL\Language\AST\TypeDefinitionNode;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
+use GraphQL\Utils\BuildSchema;
+use GraphQL\Utils\SchemaPrinter;
 use Redis;
 use Swoole\Coroutine\WaitGroup;
 use Utopia\App;
@@ -39,9 +42,10 @@ class SchemaBuilder
         $apiSchemaDirty = \version_compare($appVersion, $schemaVersion, "!=");
 
         if ($cache->exists($apiSchemaKey) && !$apiSchemaDirty) {
-            $apiSchema = \json_decode($cache->get($apiSchemaKey), true);
+            $apiSchema = BuildSchema::build($cache->get($apiSchemaKey));
 
-            foreach ($apiSchema['query'] as $field => $attributes) {
+            foreach ($apiSchema->getQueryType()->config['fields'] as $field => $attributes) {
+                $attributes['type'] = TypeMapper::fromResponseModel($attributes['type']);
                 $attributes['resolve'] = ResolverRegistry::get(
                     type: 'api',
                     field: $field,
@@ -49,7 +53,7 @@ class SchemaBuilder
                     cache: $cache,
                 );
             }
-            foreach ($apiSchema['mutation'] as $field => $attributes) {
+            foreach ($apiSchema->getMutationType()->config['fields'] as $field => $attributes) {
                 $attributes['resolve'] = ResolverRegistry::get(
                     type: 'api',
                     field: $field,
@@ -64,31 +68,31 @@ class SchemaBuilder
             \var_dump('API schema not in cache or API version changed, building schema');
 
             $apiSchema = &self::buildAPISchema($utopia, $cache);
-            $cache->set($apiSchemaKey, \json_encode($apiSchema));
+            $apiSchema = new Schema([
+                'query' => new ObjectType([
+                    'name' => 'Query',
+                    'fields' => $apiSchema['query'],
+                ]),
+                'mutation' => new ObjectType([
+                    'name' => 'Mutation',
+                    'fields' => $apiSchema['mutation'],
+                ]),
+            ]);
+            $cache->set($apiSchemaKey, SchemaPrinter::doPrint($apiSchema));
             $cache->set($apiVersionKey, $appVersion);
         }
 
         if ($cache->exists($collectionSchemaKey) && !$collectionSchemaDirty) {
-            $collectionSchema = \json_decode($cache->get($collectionSchemaKey), true);
-
-            foreach ($collectionSchema['query'] as $field => $attributes) {
-                $attributes['resolve'] = ResolverRegistry::get(
-                    type: 'collection',
-                    field: $field,
-                    utopia: $utopia,
-                    cache: $cache,
-                    dbForProject: $dbForProject,
-                );
-            }
-            foreach ($collectionSchema['mutation'] as $field => $attributes) {
-                $attributes['resolve'] = ResolverRegistry::get(
-                    type: 'collection',
-                    field: $field,
-                    utopia: $utopia,
-                    cache: $cache,
-                    dbForProject: $dbForProject
-                );
-            }
+            $collectionSchema = new Schema([
+                'query' => new ObjectType([
+                    'name' => 'Query',
+                    'fields' => []
+                ]),
+                'mutation' => new ObjectType([
+                    'name' => 'Mutation',
+                    'fields' => [],
+                ]),
+            ]);
 
             \var_dump('Collection schema loaded from cache');
         } else {
@@ -96,17 +100,29 @@ class SchemaBuilder
             \var_dump('Collection schema not in cache or collections changed, building schema');
 
             $collectionSchema = &self::buildCollectionSchema($utopia, $cache, $dbForProject);
-            $cache->set($collectionSchemaKey, \json_encode($collectionSchema));
+            $collectionSchema = new Schema([
+                'query' => new ObjectType([
+                    'name' => 'Query',
+                    'fields' => $collectionSchema['query'],
+                ]),
+                'mutation' => new ObjectType([
+                    'name' => 'Mutation',
+                    'fields' => $collectionSchema['mutation'],
+                ]),
+            ]);
+            $cache->set($collectionSchemaKey, SchemaPrinter::doPrint($collectionSchema));
             $cache->del($collectionsDirtyKey);
         }
 
+        \var_dump($apiSchema->getQueryType()->config['name']);
+
         $queryFields = \array_merge_recursive(
-            $apiSchema['query'],
-            $collectionSchema['query']
+            $apiSchema->getQueryType()->config['fields'],
+            $collectionSchema->getQueryType()->config['fields'],
         );
         $mutationFields = \array_merge_recursive(
-            $apiSchema['mutation'],
-            $collectionSchema['mutation']
+            $apiSchema->getMutationType()->config['fields'],
+            $collectionSchema->getMutationType()->config['fields'],
         );
 
         \ksort($queryFields);
@@ -122,6 +138,9 @@ class SchemaBuilder
                 'fields' => $mutationFields
             ])
         ]);
+
+        $sdl = SchemaPrinter::doPrint($schema);
+        $cache->set($fullSchemaKey, $sdl);
 
         return $schema;
     }
@@ -159,7 +178,7 @@ class SchemaBuilder
                     continue;
                 }
 
-                foreach (TypeMapper::fromRoute($utopia, $route) as $field) {
+                foreach (TypeMapper::fromRoute($utopia, $cache, $route, $name) as $field) {
                     switch ($route->getMethod()) {
                         case 'GET':
                             $queries[$name] = $field;

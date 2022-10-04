@@ -35,6 +35,7 @@ use Exception;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Definition\UnionType;
+use Redis;
 use Utopia\App;
 use Utopia\Database\Database;
 use Utopia\Database\Query;
@@ -117,7 +118,12 @@ class TypeMapper
         return [];
     }
 
-    public static function fromRoute(App $utopia, Route $route): iterable
+    public static function fromRoute(
+        App $utopia,
+        Redis $cache,
+        Route $route,
+        string $name
+    ): iterable
     {
         if (\str_starts_with($route->getPath(), '/v1/mock/')) {
             return;
@@ -142,7 +148,7 @@ class TypeMapper
             $params = [];
             $list = false;
 
-            foreach ($route->getParams() as $name => $parameter) {
+            foreach ($route->getParams() as $key => $parameter) {
                 if ($name === 'queries') {
                     $list = true;
                 }
@@ -152,12 +158,12 @@ class TypeMapper
                     !$parameter['optional'],
                     $parameter['injections']
                 );
-                $params[$name] = [
+                $params[$key] = [
                     'type' => $parameterType,
                     'description' => $parameter['description'],
                 ];
                 if ($parameter['optional']) {
-                    $params[$name]['defaultValue'] = $parameter['default'];
+                    $params[$key]['defaultValue'] = $parameter['default'];
                 }
             }
 
@@ -165,11 +171,14 @@ class TypeMapper
                 'type' => $type,
                 'description' => $description,
                 'args' => $params,
-                'resolve' => Resolvers::resolveAPIRequest(
-                    $utopia,
-                    $route->getPath(),
-                    $route->getMethod()
-                )
+                'resolve' => ResolverRegistry::get(
+                    type: 'api',
+                    field: $name,
+                    utopia: $utopia,
+                    cache: $cache,
+                    path: $route->getPath(),
+                    method: $route->getMethod(),
+                ),
             ];
 
             if ($list) {
