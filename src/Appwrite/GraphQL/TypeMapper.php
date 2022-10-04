@@ -123,8 +123,7 @@ class TypeMapper
         Redis $cache,
         Route $route,
         string $name
-    ): iterable
-    {
+    ): iterable {
         if (\str_starts_with($route->getPath(), '/v1/mock/')) {
             return;
         }
@@ -138,10 +137,7 @@ class TypeMapper
             : [static::$models[$modelNames]];
 
         foreach ($models as $model) {
-//            if (empty($responseModel->getRules())) {
-//                \var_dump('No rules: ' . $responseModel->getType());
-//                continue;
-//            }
+            /** @var Model $model */
 
             $type = TypeMapper::fromResponseModel(\ucfirst($model->getType()));
             $description = $route->getDesc();
@@ -216,6 +212,12 @@ class TypeMapper
                 'type' => Type::string(),
                 'description' => 'Additional data',
                 'resolve' => static fn($object, $args, $context, $info) => \json_encode($object, JSON_FORCE_OBJECT),
+            ];
+        }
+
+        if (empty($model->getRules())) {
+            $fields['none'] = [
+                'type' => Type::string(),
             ];
         }
 
