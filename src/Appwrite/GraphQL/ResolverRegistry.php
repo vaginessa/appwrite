@@ -73,7 +73,7 @@ class ResolverRegistry
                 'method' => $method,
             ]));
         } else {
-            $route = \json_decode($cache->get('graphql:api:' . $field));
+            $route = \json_decode($cache->get('graphql:api:' . $field), true);
             $path = $route['path'];
             $method = $route['method'];
         }
