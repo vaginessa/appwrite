@@ -95,7 +95,7 @@ class TypeMapper
             Model::TYPE_FLOAT => Type::float(),
             Model::TYPE_DATETIME => Type::string(),
             Model::TYPE_JSON => Types::json(),
-            Response::MODEL_NONE => Types::json(),
+            \ucfirst(Response::MODEL_NONE) => Types::deleteAccepted(),
             Response::MODEL_ANY => Types::json(),
         ];
 
