@@ -441,5 +441,5 @@ App::shutdown()
     ->inject('cache')
     ->inject('project')
     ->action(function (Redis $cache, Document $project) {
-        $cache->set($project->getId() . '-schema-dirty', true);
+        $cache->set('graphql:collections:' . $project->getId() . ':schema-dirty', true);
     });

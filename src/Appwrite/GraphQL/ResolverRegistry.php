@@ -20,6 +20,7 @@ class ResolverRegistry
         string $field,
         App $utopia,
         Redis $cache,
+        ?string $projectId = null,
         ?Database $dbForProject = null,
         ?string $path = null,
         ?string $method = null,
@@ -30,17 +31,18 @@ class ResolverRegistry
             return static::$resolverMapping[$field];
         }
         return match ($type) {
-            'api' => static::resolveAPIResolver(
+            'api' => static::createAPIResolver(
                 $field,
                 $utopia,
                 $cache,
                 $path,
                 $method,
             ),
-            'collection' => static::resolveCollectionResolver(
+            'collection' => static::createCollectionResolver(
                 $field,
                 $utopia,
                 $cache,
+                $projectId,
                 $dbForProject,
                 $method,
                 $databaseId,
@@ -60,7 +62,7 @@ class ResolverRegistry
         static::$resolverMapping = [];
     }
 
-    private static function resolveAPIResolver(
+    private static function createAPIResolver(
         string $field,
         App $utopia,
         Redis $cache,
@@ -68,16 +70,15 @@ class ResolverRegistry
         ?string $method = null
     ): callable {
         if ($path && $method) {
-            $cache->set('graphql:api:' . $field, \json_encode([
+            $cache->set('graphql:api:meta:' . $field, \json_encode([
                 'path' => $path,
                 'method' => $method,
             ]));
         } else {
-            $route = \json_decode($cache->get('graphql:api:' . $field), true);
+            $route = \json_decode($cache->get('graphql:api:meta:' . $field), true);
             $path = $route['path'];
             $method = $route['method'];
         }
-
         return static::$resolverMapping[$field] = Resolvers::resolveAPIRequest(
             $utopia,
             $path,
@@ -85,23 +86,24 @@ class ResolverRegistry
         );
     }
 
-    private static function resolveCollectionResolver(
+    private static function createCollectionResolver(
         string $field,
         App $utopia,
         Redis $cache,
+        string $projectId,
         ?Database $dbForProject = null,
         ?string $method = null,
         ?string $databaseId = null,
         ?string $collectionId = null,
     ): callable {
         if ($databaseId && $collectionId && $method) {
-            $cache->set('graphql:collection:' . $field, \json_encode([
+            $cache->set('graphql:collections:' . $projectId . ':meta:' . $field, \json_encode([
                 'databaseId' => $databaseId,
                 'collectionId' => $collectionId,
                 'method' => $method,
             ]));
         } else {
-            $ids = \json_decode($cache->get('graphql:collection:' . $field));
+            $ids = \json_decode($cache->get('graphql:collections:' . $projectId . ':meta:' . $field));
             $databaseId = $ids['databaseId'];
             $collectionId = $ids['collectionId'];
             $method = $ids['method'];

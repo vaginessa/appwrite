@@ -27,21 +27,21 @@ class SchemaBuilder
         Redis $cache,
         Database $dbForProject,
         string $projectId,
-    ): Schema {
-        App::setResource('current', static fn() => $utopia);
-
+    ): Schema
+    {
         $models = $utopia
             ->getResource('response')
             ->getModels();
 
         TypeMapper::init($models);
 
+        App::setResource('current', static fn() => $utopia);
+
         $appVersion = App::getEnv('_APP_VERSION');
-        $apiSchemaKey = 'api-schema';
-        $apiVersionKey = 'api-schema-version';
-        $collectionSchemaKey = $projectId . '-collection-schema';
-        $collectionsDirtyKey = $projectId . '-schema-dirty';
-        $fullSchemaKey = $projectId . '-full-schema';
+        $apiSchemaKey = 'graphql:api:schema';
+        $apiVersionKey = 'graphql:api:schema-version';
+        $collectionSchemaKey = 'graphql:collections:' . $projectId . ':schema';
+        $collectionsDirtyKey = 'graphql:collections:' . $projectId . ':schema-dirty';
 
         $schemaVersion = $cache->get($apiVersionKey) ?: '';
         $collectionSchemaDirty = $cache->get($collectionsDirtyKey);
