@@ -10,6 +10,7 @@ use GraphQL\Utils\BuildSchema;
 use GraphQL\Utils\SchemaPrinter;
 use Redis;
 use Swoole\Coroutine\WaitGroup;
+use Swoole\FastCGI\Record\Data;
 use Utopia\App;
 use Utopia\Database\Database;
 use Utopia\Database\Query;
@@ -26,8 +27,7 @@ class SchemaBuilder
         Redis $cache,
         Database $dbForProject,
         string $projectId,
-    ): Schema
-    {
+    ): Schema {
         $models = $utopia
             ->getResource('response')
             ->getModels();
@@ -88,40 +88,40 @@ class SchemaBuilder
         App $utopia,
         Redis $cache,
         string $projectId,
-    ): Schema
-    {
+    ): Schema {
+        $schemaKey = 'graphql:api:schema';
+        $versionKey = 'graphql:api:schema-version';
         $appVersion = App::getEnv('_APP_VERSION');
-        $apiSchemaKey = 'graphql:api:schema';
-        $apiVersionKey = 'graphql:api:schema-version';
+        $schemaVersion = $cache->get($versionKey) ?: '';
+        $schemaDirty = \version_compare($appVersion, $schemaVersion, "!=");
 
-        $schemaVersion = $cache->get($apiVersionKey) ?: '';
-        $apiSchemaDirty = \version_compare($appVersion, $schemaVersion, "!=");
-
-        if ($cache->exists($apiSchemaKey) && !$apiSchemaDirty) {
-            $apiSchema = BuildSchema::build(
-                $cache->get($apiSchemaKey),
-                static::getRestoreDecorator($utopia, $cache, $projectId, 'api')
-            );
-            \var_dump('API schema loaded from cache');
-        } else {
-            // Not in cache or API version changed, build schema
-            \var_dump('API schema not in cache or API version changed, building schema');
-
-            $apiSchema = &self::buildAPISchema($utopia, $cache);
-            $apiSchema = new Schema([
-                'query' => new ObjectType([
-                    'name' => 'Query',
-                    'fields' => fn() => $apiSchema['query'],
-                ]),
-                'mutation' => new ObjectType([
-                    'name' => 'Mutation',
-                    'fields' => fn() => $apiSchema['mutation'],
-                ]),
-            ]);
-            $cache->set($apiSchemaKey, SchemaPrinter::doPrint($apiSchema));
-            $cache->set($apiVersionKey, $appVersion);
+        if ($cache->exists($schemaKey) && !$schemaDirty) {
+            return BuildSchema::build($cache->get($schemaKey), static::getRestoreDecorator(
+                $utopia,
+                $cache,
+                $projectId,
+                dbForProject: null,
+                type: 'api'
+            ));
         }
-        return $apiSchema;
+
+        $fields = &self::buildAPISchema($utopia, $cache);
+
+        $schema = new Schema([
+            'query' => new ObjectType([
+                'name' => 'Query',
+                'fields' => fn() => $fields['query'],
+            ]),
+            'mutation' => new ObjectType([
+                'name' => 'Mutation',
+                'fields' => fn() => $fields['mutation'],
+            ]),
+        ]);
+
+        $cache->set($schemaKey, SchemaPrinter::doPrint($schema));
+        $cache->set($versionKey, $appVersion);
+
+        return $schema;
     }
 
     /**
@@ -137,13 +137,13 @@ class SchemaBuilder
         Redis $cache,
         string $projectId,
         Database $dbForProject,
-    ): ?Schema
-    {
+    ): ?Schema {
         $schemaKey = 'graphql:collections:' . $projectId . ':schema';
         $dirtyKey = 'graphql:collections:' . $projectId . ':schema-dirty';
         $dirty = $cache->get($dirtyKey);
 
         if ($cache->exists($schemaKey) && !$dirty) {
+            \var_dump('Collection not dirty');
             $schema = $cache->get($schemaKey);
             if (empty($schema)) {
                 return null;
@@ -152,7 +152,8 @@ class SchemaBuilder
                 $utopia,
                 $cache,
                 $projectId,
-                'collection'
+                $dbForProject,
+                type: 'collection',
             ));
         }
 
@@ -166,7 +167,10 @@ class SchemaBuilder
         $queries = $fields['query'];
         $mutations = $fields['mutation'];
 
+        \var_dump('Collection dirty');
+
         if (empty($queries) && empty($mutations)) {
+            \var_dump('Collection schema empty');
             $cache->set($schemaKey, '');
             $cache->del($dirtyKey);
             return null;
@@ -201,8 +205,7 @@ class SchemaBuilder
     private static function &buildAPISchema(
         App $utopia,
         Redis $cache
-    ): array
-    {
+    ): array {
         $queries = [];
         $mutations = [];
 
@@ -260,8 +263,7 @@ class SchemaBuilder
         Redis $cache,
         string $projectId,
         Database $dbForProject,
-    ): array
-    {
+    ): array {
         $collections = [];
         $queryFields = [];
         $mutationFields = [];
@@ -272,10 +274,10 @@ class SchemaBuilder
         $wg = new WaitGroup();
 
         while (
-        !empty($attrs = Authorization::skip(fn() => $dbForProject->find('attributes', [
+            !empty($attrs = Authorization::skip(fn() => $dbForProject->find('attributes', [
             Query::limit($limit),
             Query::offset($offset),
-        ])))
+            ])))
         ) {
             $wg->add();
             $count += count($attrs);
@@ -425,10 +427,10 @@ class SchemaBuilder
         App $utopia,
         Redis $cache,
         string $projectId,
-        string $type
-    ): callable
-    {
-        return static function (array $typeConfig) use ($utopia, $cache, $projectId, $type) {
+        ?Database $dbForProject,
+        string $type,
+    ): callable {
+        return static function (array $typeConfig) use ($utopia, $cache, $projectId, $type, $dbForProject) {
             $name = $typeConfig['name'];
 
             if ($name === 'Query' || $name === 'Mutation') {
@@ -436,11 +438,12 @@ class SchemaBuilder
 
                 foreach ($fields as $field => &$fieldConfig) {
                     $fieldConfig['resolve'] = ResolverRegistry::get(
-                        type: $type,
-                        field: $field,
-                        utopia: $utopia,
-                        cache: $cache,
-                        projectId: $projectId,
+                        $type,
+                        $field,
+                        $utopia,
+                        $cache,
+                        $projectId,
+                        $dbForProject,
                     );
                 }
                 $typeConfig['fields'] = fn() => $fields;
