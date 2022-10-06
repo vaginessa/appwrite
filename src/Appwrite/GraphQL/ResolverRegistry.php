@@ -103,7 +103,7 @@ class ResolverRegistry
                 'method' => $method,
             ]));
         } else {
-            $ids = \json_decode($cache->get('graphql:collections:' . $projectId . ':meta:' . $field));
+            $ids = \json_decode($cache->get('graphql:collections:' . $projectId . ':meta:' . $field), true);
             $databaseId = $ids['databaseId'];
             $collectionId = $ids['collectionId'];
             $method = $ids['method'];

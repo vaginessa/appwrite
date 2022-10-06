@@ -383,12 +383,12 @@ class SchemaBuilder
                         ),
                         'resolve' => ResolverRegistry::get(
                             type: 'collection',
-                            field: $collectionId . 'Create',
+                            field: $collectionId . 'Update',
                             utopia: $utopia,
                             cache: $cache,
                             projectId: $projectId,
                             dbForProject: $dbForProject,
-                            method: 'create',
+                            method: 'update',
                             databaseId: $databaseId,
                             collectionId: $collectionId,
                         )
