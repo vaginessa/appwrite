@@ -105,6 +105,8 @@ class SchemaBuilder
             ));
         }
 
+        ResolverRegistry::clear();
+
         $fields = &self::buildAPISchema($utopia, $cache);
 
         $schema = new Schema([
@@ -156,6 +158,8 @@ class SchemaBuilder
                 type: 'collection',
             ));
         }
+
+        ResolverRegistry::clear();
 
         $fields = &self::buildCollectionSchema(
             $utopia,
