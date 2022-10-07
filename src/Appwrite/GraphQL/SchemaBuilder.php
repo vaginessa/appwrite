@@ -325,6 +325,7 @@ class SchemaBuilder
 
                     $queryFields[$collectionId . 'Get'] = [
                         'type' => $objectType,
+                        'description' => 'Get ' . $objectType->name,
                         'args' => TypeMapper::argumentsFor('id'),
                         'resolve' => ResolverRegistry::get(
                             type: 'collection',
@@ -340,6 +341,7 @@ class SchemaBuilder
                     ];
                     $queryFields[$collectionId . 'List'] = [
                         'type' => Type::listOf($objectType),
+                        'description' => 'List ' . $objectType->name,
                         'args' => TypeMapper::argumentsFor('list'),
                         'resolve' => ResolverRegistry::get(
                             type: 'collection',
@@ -360,9 +362,9 @@ class SchemaBuilder
                             return $complexity * $limit;
                         },
                     ];
-
                     $mutationFields[$collectionId . 'Create'] = [
                         'type' => $objectType,
+                        'description' => 'Create ' . $objectType->name,
                         'args' => $attributes,
                         'resolve' => ResolverRegistry::get(
                             type: 'collection',
@@ -378,6 +380,7 @@ class SchemaBuilder
                     ];
                     $mutationFields[$collectionId . 'Update'] = [
                         'type' => $objectType,
+                        'description' => 'Update ' . $objectType->name,
                         'args' => \array_merge(
                             TypeMapper::argumentsFor('id'),
                             \array_map(
@@ -399,6 +402,7 @@ class SchemaBuilder
                     ];
                     $mutationFields[$collectionId . 'Delete'] = [
                         'type' => TypeMapper::fromResponseModel(\ucfirst(Response::MODEL_NONE)),
+                        'description' => 'Delete ' . $objectType->name,
                         'args' => TypeMapper::argumentsFor('id'),
                         'resolve' => ResolverRegistry::get(
                             type: 'collection',
