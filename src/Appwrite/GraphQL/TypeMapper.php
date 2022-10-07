@@ -214,8 +214,9 @@ class TypeMapper
         }
 
         if (empty($model->getRules())) {
-            $fields['none'] = [
+            $fields['status'] = [
                 'type' => Type::string(),
+                'defaultValue' => 'ok',
             ];
         }
 
