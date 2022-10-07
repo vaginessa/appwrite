@@ -145,7 +145,6 @@ class SchemaBuilder
         $dirty = $cache->get($dirtyKey);
 
         if ($cache->exists($schemaKey) && !$dirty) {
-            \var_dump('Collection not dirty');
             $schema = $cache->get($schemaKey);
             if (empty($schema)) {
                 return null;
@@ -171,10 +170,7 @@ class SchemaBuilder
         $queries = $fields['query'];
         $mutations = $fields['mutation'];
 
-        \var_dump('Collection dirty');
-
         if (empty($queries) && empty($mutations)) {
-            \var_dump('Collection schema empty');
             $cache->set($schemaKey, '');
             $cache->del($dirtyKey);
             return null;
@@ -305,7 +301,7 @@ class SchemaBuilder
                             $required
                         ),
                     ];
-                    if ($default) {
+                    if (!$required) {
                         $collections[$collectionId][$escapedKey]['defaultValue'] = $default;
                     }
                 }
