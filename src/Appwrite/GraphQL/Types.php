@@ -38,19 +38,4 @@ class Types
         TypeRegistry::set(InputFile::class, $type);
         return $type;
     }
-
-    /**
-     * Get the DeleteAccepted type.
-     *
-     * @return Type
-     */
-    public static function deleteAccepted(): Type
-    {
-        if (TypeRegistry::has(DeleteAccepted::class)) {
-            return TypeRegistry::get(DeleteAccepted::class);
-        }
-        $type = new DeleteAccepted();
-        TypeRegistry::set(DeleteAccepted::class, $type);
-        return $type;
-    }
 }
